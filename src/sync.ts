@@ -18,6 +18,7 @@ import {
 import { notionRequest } from "./rate-limiter.js";
 import { notion } from "./notion.js";
 import { applyRules } from "./rules.js";
+import { logger } from "./logger.js";
 import type {
   Transaction,
   RemovedTransaction,
@@ -36,8 +37,10 @@ import type {
 //   6. Save sync cursor
 //   7. Snapshot net worth
 //
-// Pagination resilience: preserves original cursor and restarts on
-// TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION error.
+// Error handling:
+//   - ITEM_LOGIN_REQUIRED: log a clear re-auth message, skip institution
+//   - Pagination mutation: restart from preserved original cursor
+//   - Other Plaid errors: log and continue with remaining institutions
 //
 // Reference: plaid/pattern repo for cursor management strategy
 // Reference: Plaid docs for count=500 and pagination edge cases
@@ -57,10 +60,12 @@ interface SyncSummary {
 // --- Main Entry Point ---
 
 export async function runSync(): Promise<void> {
+  logger.syncStart();
+
   const store = await readCredentials();
 
   if (store.institutions.length === 0) {
-    console.log("No linked institutions. Run `npm run link` to connect a bank.");
+    logger.log("No linked institutions. Run `npm run link` to connect a bank.");
     return;
   }
 
@@ -68,14 +73,14 @@ export async function runSync(): Promise<void> {
   const schemas = await validateSchemas();
 
   // Build category lookup map once
-  console.log("\nLoading categories...");
+  logger.log("\nLoading categories...");
   const categoryMap = await getCategoryMap();
-  console.log(`  ${categoryMap.size} categories found`);
+  logger.log(`  ${categoryMap.size} categories found`);
 
   const summaries: SyncSummary[] = [];
 
   for (const institution of store.institutions) {
-    console.log(`\nSyncing: ${institution.name}...`);
+    logger.log(`\nSyncing: ${institution.name}...`);
     try {
       const summary = await syncInstitution(
         institution,
@@ -84,8 +89,18 @@ export async function runSync(): Promise<void> {
       );
       summaries.push(summary);
     } catch (err: any) {
-      console.error(`  Error syncing ${institution.name}: ${err.message}`);
-      // Continue with other institutions
+      // Handle Plaid token expiry — bank needs re-authentication
+      const errorCode = err?.response?.data?.error_code;
+      if (errorCode === "ITEM_LOGIN_REQUIRED") {
+        logger.warn(
+          `  ${institution.name} requires re-authentication.\n` +
+            `  Run: npm run link\n` +
+            `  Then re-link this institution in the Plaid dialog.`
+        );
+      } else {
+        logger.error(`  Error syncing ${institution.name}: ${err.message}`);
+      }
+      // Continue with other institutions — don't fail the entire run
     }
   }
 
@@ -109,7 +124,7 @@ async function syncInstitution(
     institution.cursor
   );
 
-  console.log(
+  logger.log(
     `  Transactions: ${added.length} added, ${modified.length} modified, ${removed.length} removed`
   );
 
@@ -135,7 +150,7 @@ async function syncInstitution(
     if (txn.transaction_id) {
       const archived = await archiveTransaction(txn.transaction_id);
       if (archived) {
-        console.log(`  Archived: ${txn.transaction_id}`);
+        logger.log(`  Archived: ${txn.transaction_id}`);
       }
     }
   }
@@ -208,7 +223,7 @@ async function pullTransactions(
         retries < MAX_PAGINATION_RETRIES
       ) {
         // Restart from original cursor per Plaid docs
-        console.warn(
+        logger.warn(
           `  Pagination mutation detected. Restarting from original cursor ` +
             `(retry ${retries + 1}/${MAX_PAGINATION_RETRIES})...`
         );
@@ -257,7 +272,7 @@ async function syncAccounts(
     pageMap.set(acct.account_id, pageId);
   }
 
-  console.log(`  Accounts: ${pageMap.size} updated`);
+  logger.log(`  Accounts: ${pageMap.size} updated`);
   return pageMap;
 }
 
@@ -362,7 +377,7 @@ async function snapshotNetWorth(accountSchema: SchemaMap): Promise<void> {
 
   const netWorth = totalAssets - totalLiabilities;
 
-  console.log(
+  logger.log(
     `\nNet Worth Snapshot:` +
       `\n  Assets:      $${totalAssets.toFixed(2)}` +
       `\n  Liabilities: $${totalLiabilities.toFixed(2)}` +
@@ -384,7 +399,7 @@ async function snapshotNetWorth(accountSchema: SchemaMap): Promise<void> {
         },
       })
     );
-    console.log("  Saved to Net Worth History DB");
+    logger.log("  Saved to Net Worth History DB");
   }
 }
 
@@ -406,16 +421,16 @@ function mapAccountType(plaidType: string | null | undefined): string {
 }
 
 function printSummary(summaries: SyncSummary[]): void {
-  console.log("\n--- Sync Complete ---");
+  logger.log("\n--- Sync Complete ---");
   for (const s of summaries) {
-    console.log(
+    logger.log(
       `  ${s.institution}: ${s.added} added, ${s.modified} modified, ${s.removed} removed (${s.accounts} accounts)`
     );
   }
   const totalAdded = summaries.reduce((sum, s) => sum + s.added, 0);
   const totalModified = summaries.reduce((sum, s) => sum + s.modified, 0);
   const totalRemoved = summaries.reduce((sum, s) => sum + s.removed, 0);
-  console.log(
+  logger.log(
     `  Total: ${totalAdded} added, ${totalModified} modified, ${totalRemoved} removed`
   );
 }

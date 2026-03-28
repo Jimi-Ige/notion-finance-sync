@@ -1,8 +1,9 @@
 import { readCredentials } from "./credentials.js";
+import { readLogTail } from "./logger.js";
+import { LOG_PATH } from "./config.js";
 
 // ---------------------------------------------------------------------------
-// Status command — shows linked institutions and last sync time.
-// Full implementation in Phase 4; this is a working early version.
+// Status command — shows linked institutions, sync health, and recent log.
 // ---------------------------------------------------------------------------
 
 async function main() {
@@ -21,11 +22,30 @@ async function main() {
       : "never";
     const hasCursor = inst.cursor ? "yes" : "no";
 
+    // Determine health status
+    let health = "OK";
+    if (!inst.lastSync) {
+      health = "NEVER SYNCED";
+    } else {
+      const daysSince = (Date.now() - new Date(inst.lastSync).getTime()) / 86_400_000;
+      if (daysSince > 7) health = "STALE (>7 days)";
+      else if (daysSince > 2) health = "BEHIND (>2 days)";
+    }
+
     console.log(`  ${inst.name}`);
+    console.log(`    Status:    ${health}`);
     console.log(`    Accounts:  ${inst.accounts.length}`);
     inst.accounts.forEach((a) => console.log(`      - ${a.name} (${a.type})`));
     console.log(`    Last sync: ${lastSync}`);
     console.log(`    Cursor:    ${hasCursor}`);
+    console.log();
+  }
+
+  // Show recent log activity
+  const logTail = readLogTail(8);
+  if (logTail) {
+    console.log(`Recent sync log (${LOG_PATH}):\n`);
+    console.log(logTail);
     console.log();
   }
 }
