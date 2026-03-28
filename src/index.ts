@@ -1,8 +1,23 @@
+import { runSync } from "./sync.js";
+
 // ---------------------------------------------------------------------------
-// Sync engine entry point — Phase 3 will implement this.
-// For now, this is a placeholder so `npm run sync` doesn't fail silently.
+// CLI entry point for `npm run sync`.
+// Pulls new transactions from Plaid and pushes them to Notion.
 // ---------------------------------------------------------------------------
 
-console.log("notion-finance-sync: sync engine not yet implemented (Phase 3).");
-console.log("Run `npm run link` to connect a bank account first.");
-process.exit(0);
+async function main() {
+  const start = Date.now();
+  console.log("notion-finance-sync: starting sync...\n");
+
+  try {
+    await runSync();
+  } catch (err: any) {
+    console.error(`\nSync failed: ${err.message}`);
+    process.exit(1);
+  }
+
+  const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+  console.log(`\nDone in ${elapsed}s`);
+}
+
+main();

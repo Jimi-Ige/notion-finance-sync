@@ -54,6 +54,11 @@ export const DATA_DIR = join(homedir(), ".notion-finance");
 export const CREDENTIALS_PATH = join(DATA_DIR, "credentials.json");
 export const LOG_PATH = join(DATA_DIR, "sync.log");
 
+// --- Net Worth History (optional — created in Phase 3) ---
+
+/** If set, net worth snapshots are written to this database after each sync. */
+export const NOTION_NET_WORTH_DB = process.env.NOTION_NET_WORTH_DB || "";
+
 // --- Link Server ---
 
 export const LINK_SERVER_PORT = Number(optional("LINK_SERVER_PORT", "3000"));
