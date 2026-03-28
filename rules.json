@@ -1,0 +1,11 @@
+[
+  {
+    "_comment": "Example rules — evaluated in order, first match wins.",
+    "match": { "merchant_contains": "STARBUCKS" },
+    "set": { "category": "Coffee" }
+  },
+  {
+    "match": { "merchant_contains": "UBER" },
+    "set": { "category": "Transportation" }
+  }
+]

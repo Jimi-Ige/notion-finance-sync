@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Environment variables (contains API keys, Notion DB IDs)
+.env
+
+# TypeScript build output
+dist/
+
+# Encrypted credentials (stored in ~/.notion-finance/, not in repo)
+credentials.json
+
+# Logs
+*.log
+sync.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
