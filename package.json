@@ -7,6 +7,8 @@
     "link": "tsx src/link-server.ts",
     "sync": "tsx src/index.ts",
     "status": "tsx src/status.ts",
+    "clean": "tsx src/cleanup.ts",
+    "import": "tsx src/import-csv.ts",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
