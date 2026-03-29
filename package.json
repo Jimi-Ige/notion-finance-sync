@@ -9,6 +9,8 @@
     "status": "tsx src/status.ts",
     "clean": "tsx src/cleanup.ts",
     "import": "tsx src/import-csv.ts",
+    "snapshot": "tsx src/snapshot.ts",
+    "migrate:budget": "tsx src/migrate-budget.ts",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
