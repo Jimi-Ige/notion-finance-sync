@@ -270,7 +270,92 @@ function fmtDollar(n: number): string {
   return `${prefix}$${Math.abs(n).toLocaleString()}`;
 }
 
+/**
+ * Compute and write budget rollovers to the Budgets DB.
+ * Rollover = budgeted monthly equivalent - actual spending per category.
+ * Each budget item gets its proportional share of the category rollover.
+ */
+async function computeRollovers(
+  categoryActuals: Map<string, number>
+): Promise<number> {
+  // Fetch all budget items with their page IDs and category links
+  const budgetItems: {
+    pageId: string;
+    name: string;
+    monthlyAmount: number;
+    categoryId: string | null;
+  }[] = [];
+  let cursor: string | undefined;
+
+  do {
+    const response: any = await notionRequest(() =>
+      notion.databases.query({
+        database_id: NOTION_DB.budgets,
+        start_cursor: cursor,
+        page_size: 100,
+      })
+    );
+
+    for (const page of response.results) {
+      const props = page.properties;
+      const titleProp = Object.values(props).find(
+        (p: any) => p.type === "title"
+      ) as any;
+      const name = titleProp?.title?.[0]?.plain_text ?? "Untitled";
+      const amount = props["Budget Amount"]?.number ?? 0;
+      const cadence = props["Cadence"]?.select?.name ?? "Monthly";
+
+      let monthly = amount;
+      if (cadence === "Yearly") monthly = amount / 12;
+      else if (cadence === "Weekly") monthly = amount * 4.33;
+      else if (cadence === "Bi-weekly") monthly = amount * 2.17;
+
+      const catRel = props["Category"]?.relation;
+      const categoryId = catRel?.length > 0 ? catRel[0].id : null;
+
+      budgetItems.push({ pageId: page.id, name, monthlyAmount: monthly, categoryId });
+    }
+
+    cursor = response.has_more ? response.next_cursor : undefined;
+  } while (cursor);
+
+  // Group budget items by category to compute proportional rollovers
+  const byCat = new Map<string, typeof budgetItems>();
+  for (const item of budgetItems) {
+    if (!item.categoryId) continue;
+    const group = byCat.get(item.categoryId) ?? [];
+    group.push(item);
+    byCat.set(item.categoryId, group);
+  }
+
+  let updated = 0;
+  for (const [catId, items] of byCat) {
+    const totalBudgeted = items.reduce((s, i) => s + i.monthlyAmount, 0);
+    const actual = categoryActuals.get(catId) ?? 0;
+    const categoryRollover = totalBudgeted - actual;
+
+    // Distribute rollover proportionally across budget items in this category
+    for (const item of items) {
+      const share = totalBudgeted > 0 ? item.monthlyAmount / totalBudgeted : 0;
+      const rollover = Math.round(categoryRollover * share * 100) / 100;
+
+      await notionRequest(() =>
+        notion.pages.update({
+          page_id: item.pageId,
+          properties: {
+            Rollover: { number: rollover },
+          },
+        })
+      );
+      updated++;
+    }
+  }
+
+  return updated;
+}
+
 async function main() {
+  const writeRollovers = process.argv.includes("--rollover");
   console.log("Calculating snapshot from Notion data...\n");
 
   const [{ totals, categoryActuals }, goals] = await Promise.all([
@@ -309,6 +394,13 @@ async function main() {
     console.log(
       `  ${"TOTAL".padEnd(25)} ${("$" + totalBudgeted.toLocaleString()).padStart(10)} ${("$" + totalActual.toLocaleString()).padStart(10)} ${fmtDollar(totalVariance).padStart(10)}`
     );
+  }
+
+  // Budget rollovers
+  if (writeRollovers) {
+    console.log(`\n## Writing Budget Rollovers`);
+    const updated = await computeRollovers(categoryActuals);
+    console.log(`  Updated ${updated} budget items with rollover amounts.`);
   }
 
   // Savings goals

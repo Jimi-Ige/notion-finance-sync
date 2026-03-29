@@ -12,6 +12,7 @@
     "snapshot": "tsx src/snapshot.ts",
     "migrate:budget": "tsx src/migrate-budget.ts",
     "runway": "tsx src/runway.ts",
+    "detect": "tsx src/detect-recurring.ts",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
