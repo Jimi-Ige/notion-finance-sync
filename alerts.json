@@ -1,0 +1,7 @@
+{
+  "budgetWarningThreshold": 0.8,
+  "spendingSpikeMultiplier": 1.5,
+  "spendingSpikeWindowWeeks": 4,
+  "lowRunwayDays": 30,
+  "criticalRunwayDays": 14
+}

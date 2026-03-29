@@ -13,6 +13,8 @@
     "migrate:budget": "tsx src/migrate-budget.ts",
     "runway": "tsx src/runway.ts",
     "detect": "tsx src/detect-recurring.ts",
+    "digest": "tsx src/digest.ts",
+    "debt": "tsx src/debt.ts",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [

@@ -64,6 +64,11 @@ export const NOTION_NET_WORTH_DB = process.env.NOTION_NET_WORTH_DB || "";
 /** Time series DB for runway snapshots: liquid cash, burn rate, runway days, liquidity score. */
 export const NOTION_RUNWAY_HISTORY_DB = process.env.NOTION_RUNWAY_HISTORY_DB || "";
 
+// --- Weekly Digests ---
+
+/** DB for weekly financial health digest pages. */
+export const NOTION_WEEKLY_DIGESTS_DB = process.env.NOTION_WEEKLY_DIGESTS_DB || "";
+
 // --- Link Server ---
 
 export const LINK_SERVER_PORT = Number(optional("LINK_SERVER_PORT", "3000"));
