@@ -59,6 +59,11 @@ export const LOG_PATH = join(DATA_DIR, "sync.log");
 /** If set, net worth snapshots are written to this database after each sync. */
 export const NOTION_NET_WORTH_DB = process.env.NOTION_NET_WORTH_DB || "";
 
+// --- Runway History (Cash Flow Intelligence Layer) ---
+
+/** Time series DB for runway snapshots: liquid cash, burn rate, runway days, liquidity score. */
+export const NOTION_RUNWAY_HISTORY_DB = process.env.NOTION_RUNWAY_HISTORY_DB || "";
+
 // --- Link Server ---
 
 export const LINK_SERVER_PORT = Number(optional("LINK_SERVER_PORT", "3000"));
